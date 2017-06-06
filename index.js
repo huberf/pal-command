@@ -38,15 +38,36 @@ app.get('/add/:id/:command', (req, res) => {
     console.log(clients[keys[i]].id);
     if (clients[keys[i]].id == req.params.id) {
       console.log('Found client and emitting command');
-      clients[keys[i]].emit('command', {command: req.params.command, id: commandId});
+      clients[keys[i]].emit('command', {command: {action: 'basic', text: req.params.command}, id: commandId});
       if (commandQueue[req.params.id]) {
-        commandQueue[req.params.id].push({command: req.params.command, id: commandId, done: false});
+        commandQueue[req.params.id].push({command: {action: 'basic', text: req.params.command}, id: commandId, done: false});
       } else {
-        commandQueue[req.params.id] = [{command: req.params.command, id: commandId, done: false}];
+        commandQueue[req.params.id] = [{command: {action: 'basic', text: req.params.command}, id: commandId, done: false}];
       }
     }
   }
   res.send({status: 'success', command: req.params.command, id: commandId});
+});
+
+app.post('/add/:id', (req, res) => {
+  // req.body.command should be a JSON object that can be executed locally
+  var command = req.body.command;
+  var clients = io.sockets.sockets;
+  var keys = Object.keys(io.sockets.sockets);
+  var commandId = createUuid();
+  for (var i = 0; i < keys.length; i++) {
+    console.log(clients[keys[i]].id);
+    if (clients[keys[i]].id == req.params.id) {
+      console.log('Found client and emitting command');
+      clients[keys[i]].emit('command', {command, id: commandId});
+      if (commandQueue[req.params.id]) {
+        commandQueue[req.params.id].push({command, id: commandId, done: false});
+      } else {
+        commandQueue[req.params.id] = [{command, id: commandId, done: false}];
+      }
+    }
+  }
+  res.send({status: 'success', command, id: commandId});
 });
 
 // Debug Path - To be removed in future versions

@@ -16,6 +16,11 @@ This node server securely relays commands in realtime to connected clients. All 
 5. Then, fetch this URL in a browser window http://localhost:1999/add/demo/test.
 6. Check the terminal running the Python script to see if it output any text. If so, success and if not you can just start a bug report :)
 
+## Endpoints
+
+* `POST - /add/:clientId` - Send a POST request containing a JSON object for the `body.command` key.
+* `GET - /add/:clientId/:message` - Send a GET request where `:message` is the text you want passed for the `basic` action type.
+
 ## Uses
 
 - Use with the PAL Assistant to remotely control your computer via the text and voice interface.

@@ -4,7 +4,12 @@ myId = 'demo'
 
 def execute(data):
     success = True
-    doCommand = "to be added";
+    if data['command']['action'] == 'basic':
+        print('The message is: ' + data['command']['text'])
+    else:
+        success = False
+        print('Can\'t process specified action.')
+        print(data)
     if success:
         socketIO.emit('complete', {'clientId': myId, 'id': data['id']})
 
