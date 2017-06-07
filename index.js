@@ -34,16 +34,15 @@ app.get('/add/:id/:command', (req, res) => {
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
   var commandId = createUuid();
+  if (commandQueue[req.params.id]) {
+    commandQueue[req.params.id].push({command: {action: 'basic', text: req.params.command}, id: commandId, done: false});
+  } else {
+    commandQueue[req.params.id] = [{command: {action: 'basic', text: req.params.command}, id: commandId, done: false}];
+  }
   for (var i = 0; i < keys.length; i++) {
-    console.log(clients[keys[i]].id);
     if (clients[keys[i]].id == req.params.id) {
       console.log('Found client and emitting command');
       clients[keys[i]].emit('command', {command: {action: 'basic', text: req.params.command}, id: commandId});
-      if (commandQueue[req.params.id]) {
-        commandQueue[req.params.id].push({command: {action: 'basic', text: req.params.command}, id: commandId, done: false});
-      } else {
-        commandQueue[req.params.id] = [{command: {action: 'basic', text: req.params.command}, id: commandId, done: false}];
-      }
     }
   }
   res.send({status: 'success', command: req.params.command, id: commandId});
@@ -55,19 +54,53 @@ app.post('/add/:id', (req, res) => {
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
   var commandId = createUuid();
+  if (commandQueue[req.params.id]) {
+    commandQueue[req.params.id].push({command, id: commandId, done: false});
+  } else {
+    commandQueue[req.params.id] = [{command, id: commandId, done: false}];
+  }
   for (var i = 0; i < keys.length; i++) {
     console.log(clients[keys[i]].id);
     if (clients[keys[i]].id == req.params.id) {
       console.log('Found client and emitting command');
       clients[keys[i]].emit('command', {command, id: commandId});
-      if (commandQueue[req.params.id]) {
-        commandQueue[req.params.id].push({command, id: commandId, done: false});
-      } else {
-        commandQueue[req.params.id] = [{command, id: commandId, done: false}];
-      }
     }
   }
   res.send({status: 'success', command, id: commandId});
+});
+
+// Endpoints for compatibility with devices that don't support websockets
+app.get('/retrieve/:id', (req, res) => {
+  var toSend = {name: 'pal-command', version: '0.1.0', commands: commandQueue[req.params.id]};
+  res.send(toSend);
+});
+
+app.post('/complete/:clientId', (req, res) => {
+  var success = true;
+  var index = -1;
+  var commands = [];
+  if (commandQueue[req.params.clientId]) {
+    commands = commandQueue[req.params.clientId];
+  } else {
+    commands = [];
+  }
+  var foundOne = false;
+  for (var i = 0; i < commands.length; i++) {
+    if (commands[i].id == req.body.id) {
+      foundOne = true;
+      console.log('Marking command as complete');
+      commandQueue[req.params.clientId][i].done = true;
+    }
+  }
+  if (!foundOne) {
+    var message = "Command specified could not be found";
+    success = false;
+  }
+  if (success) {
+    res.send({success});
+  } else {
+    res.send({success, message});
+  }
 });
 
 // Debug Path - To be removed in future versions
