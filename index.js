@@ -26,6 +26,46 @@ var createUuid = () => {
   return uuid.v4();
 }
 
+var createCommand = (clientId, commandId, command) => {
+  if (commandQueue[clientId]) {
+    commandQueue[clientId].push({command, id: commandId, done: false});
+  } else {
+    commandQueue[clientIid] = [{command, id: commandId, done: false}];
+  }
+}
+
+var completeCommand = (clientId, commandId) => {
+  var success = true;
+  var index = -1;
+  var commands = [];
+  if (commandQueue[clientId]) {
+    commands = commandQueue[clientId];
+  } else {
+    commands = [];
+  }
+  var foundOne = false;
+  for (var i = 0; i < commands.length; i++) {
+    if (commands[i].id == commandId) {
+      foundOne = true;
+      console.log('Marking command as complete');
+      commandQueue[clientId][i].done = true;
+    }
+  }
+  var message = "None";
+  if (!foundOne) {
+    message = "Command specified could not be found";
+    success = false;
+  }
+  return {success, message}
+}
+
+var getCommands = (clientId) => {
+  if(!commandQueue[clientId]) {
+    commandQueue[clientId] = [];
+  }
+  return commandQueue[clientId];
+}
+
 app.get('/', (req, res) => {
   res.send({name: 'pal-command', version: '0.1.0'});
 });
@@ -34,11 +74,7 @@ app.get('/add/:id/:command', (req, res) => {
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
   var commandId = createUuid();
-  if (commandQueue[req.params.id]) {
-    commandQueue[req.params.id].push({command: {action: 'basic', text: req.params.command}, id: commandId, done: false});
-  } else {
-    commandQueue[req.params.id] = [{command: {action: 'basic', text: req.params.command}, id: commandId, done: false}];
-  }
+  createCommand(req.params.id, commandId, {action: 'basic', text: req.params.command});
   for (var i = 0; i < keys.length; i++) {
     if (clients[keys[i]].id == req.params.id) {
       console.log('Found client and emitting command');
@@ -54,11 +90,7 @@ app.post('/add/:id', (req, res) => {
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
   var commandId = createUuid();
-  if (commandQueue[req.params.id]) {
-    commandQueue[req.params.id].push({command, id: commandId, done: false});
-  } else {
-    commandQueue[req.params.id] = [{command, id: commandId, done: false}];
-  }
+  createCommand(req.params.id, commandId, command);
   for (var i = 0; i < keys.length; i++) {
     console.log(clients[keys[i]].id);
     if (clients[keys[i]].id == req.params.id) {
@@ -71,35 +103,16 @@ app.post('/add/:id', (req, res) => {
 
 // Endpoints for compatibility with devices that don't support websockets
 app.get('/retrieve/:id', (req, res) => {
-  var toSend = {name: 'pal-command', version: '0.1.0', commands: commandQueue[req.params.id]};
+  var toSend = {name: 'pal-command', version: '0.1.0', commands: getCommands(req.params.id)};
   res.send(toSend);
 });
 
 app.post('/complete/:clientId', (req, res) => {
-  var success = true;
-  var index = -1;
-  var commands = [];
-  if (commandQueue[req.params.clientId]) {
-    commands = commandQueue[req.params.clientId];
+  var data = completeCommand(req.params.clientId, req.body.id);
+  if (data.success) {
+    res.send({success: data.success});
   } else {
-    commands = [];
-  }
-  var foundOne = false;
-  for (var i = 0; i < commands.length; i++) {
-    if (commands[i].id == req.body.id) {
-      foundOne = true;
-      console.log('Marking command as complete');
-      commandQueue[req.params.clientId][i].done = true;
-    }
-  }
-  if (!foundOne) {
-    var message = "Command specified could not be found";
-    success = false;
-  }
-  if (success) {
-    res.send({success});
-  } else {
-    res.send({success, message});
+    res.send({success: data.success, message: data.message});
   }
 });
 
@@ -112,25 +125,11 @@ io.sockets.on('connection', function(socket){
   socket.on('handshake', function (data) {
     console.log(data);
     socket.id = data.id;
-    if(!commandQueue[data.id]) {
-      commandQueue[data.id] = [];
-    }
-    socket.emit('handshake', {name: 'pal-command', version: '0.1.0', commands: commandQueue[data.id].map((e) => {if (e.done == false) { return e;}})});
+    var commands = getCommands(data.id);
+    socket.emit('handshake', {name: 'pal-command', version: '0.1.0', commands: commands.map((e) => {if (e.done == false) { return e;}})});
   });
   socket.on('complete', function(data) {
-    var index = -1;
-    var commands = [];
-    if (commandQueue[data.clientId]) {
-      commands = commandQueue[data.clientId];
-    } else {
-      commands = [];
-    }
-    for (var i = 0; i < commands.length; i++) {
-      if (commands[i].id == data.id) {
-        console.log('Marking command as complete');
-        commandQueue[data.clientId][i].done = true;
-      }
-    }
+    completeCommand(data.clientId, data.id);
   });
 });
 
