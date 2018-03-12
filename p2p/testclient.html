@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>P2P WebSocket Client</title>
+	<!-- <script src="jquery.min.js"></script> -->
+	<script type="text/javascript">
+         var socket = null;
+         var isopen = false;
+         var clientName = 'client' + Math.floor(Math.random() * 20);
+         var registredUsers = [];
+         var selectedUser = '';
+         var messageWrapper;
+         window.onload = function() {
+            var logger = document.querySelector("#logs");
+            var userlist = document.querySelector(".userlist");
+            messageWrapper = document.querySelector(".messageWrapper");
+            socket = new WebSocket("ws://127.0.0.1:9000");
+            socket.binaryType = "arraybuffer";
+            socket.onopen = function() {
+               logger.insertAdjacentHTML('beforeend', '<div>Connected</div>');
+               var string = JSON.stringify({'register' : { 'username' : clientName }});
+               socket.send(string);
+               isopen = true;
+            }
+            socket.onmessage = function(e) {
+            	console.log("test");
+            	console.log(e.data);
+			   try {
+					var msg = JSON.parse(e.data);
+					if (msg.action == 'newuser'){
+                        for(var i=0; i<msg.usernames.length; i++) {
+                            if (registredUsers.indexOf(msg.usernames[i]) == -1) {
+                                if (msg.usernames[i] == clientName) {
+                                    document.querySelector('#username').innerHTML = "connected as " + msg.usernames[i];
+                                    logger.insertAdjacentHTML('beforeend', '<div>Registered as '+msg.usernames[i]+'</div>');
+                                    userlist.insertAdjacentHTML('beforeend', '<div class="log" onclick="selectLogs(this)" >Logs</div>');
+                                } else {
+                                    logger.insertAdjacentHTML('beforeend', '<div>'+msg.usernames[i]+' Registered</div>');
+                                    userlist.insertAdjacentHTML('beforeend', '<div class="user" id="pannel_'+msg.usernames[i]+'" onclick="selectUser(this)" >'+msg.usernames[i]+'</div>');
+                                    messageWrapper.insertAdjacentHTML('beforeend', '<div id="'+msg.usernames[i]+'" class="hidden" ></div>');
+                                }
+                                registredUsers.push(msg.usernames[i]);
+                            }
+                        }
+
+                    } else if (msg.action == 'message') {
+                        document.querySelector("#" + msg.from).insertAdjacentHTML('beforeend', '<div>'+msg.message+'</div>');
+                    } else if (msg.action == 'userleft') {
+                        document.querySelector("#pannel_" + msg.username).classList.add('hidden');
+                        document.querySelector("#" + msg.username).classList.add('hidden');
+                    }
+			   } catch(err) {
+			   }
+            }
+            socket.onclose = function(e) {
+               console.log("Connection closed.");
+               socket = null;
+               isopen = false;
+            }
+
+
+         };
+
+         function selectLogs(e) {
+            var messageAreas = messageWrapper.querySelector('div');
+            messageAreas.classList.add('hidden');
+            document.querySelector('.logs').classList.remove('hidden');
+         }
+
+         function selectUser(e) {
+                document.querySelector('.userlist div').classList.remove('selected');
+                e.classList.add("selected");
+                var messageAreas = messageWrapper.querySelector('div');
+                messageAreas.classList.add('hidden');
+                document.querySelector("#" + e.innerHTML).classList.remove('hidden');
+                var userlist = document.querySelector(".userlist");
+                selectedUser = e.innerHTML;
+        }
+
+         function sendMessage() {
+            var messageInput = document.querySelector("#message");
+            var message = messageInput.value;
+            var string = JSON.stringify({'message' : message, 'username': selectedUser});
+            console.log(string);
+            document.querySelector("#" + selectedUser).insertAdjacentHTML('beforeend', '<div class="sentMessage">'+message+'</div>');
+            socket.send(string);
+            messageInput.value = "";
+         }
+
+    </script>
+
+<style>
+
+html, body {
+  margin: 0px;
+	font-family: "Candara", Georgia, Serif;
+}
+
+.messageWrapper {
+    border: solid 1px #999;
+    padding: 5px;
+    margin: 5px;
+    position: fixed;
+    left: 10px;
+    right: 200px;
+    bottom: 100px;
+    top: 100px;
+}
+
+.title {
+    left: 18px;
+    position: fixed;
+}
+
+.userlist {
+    position: fixed;
+    right: 10px;
+    border: solid 1px #999;
+    padding: 10px;
+    top: 105px;
+    width: 160px;
+    bottom: 105px;
+}
+
+.userlist div {
+    cursor: pointer;
+}
+
+.userlist .selected {
+    background: #ccc;
+}
+
+.hidden {
+    display: none;
+}
+
+.typing {
+    position: fixed;
+    bottom: 10px;
+    left: 14px;
+    right: 10px;
+}
+
+.typing input[type=text] {
+    width: 90%;
+    height: 40px;
+}
+
+.typing input[type=button] {
+    width: 8%;
+    height: 40px;
+}
+
+#username {
+    position: fixed;
+    top: 82px;
+    left: 17px;
+    font-size: 9pt;
+}
+
+.sentMessage {
+    color: blue;
+}
+
+</style>
+</head>
+<body>
+    <h1 class="title">P2P Messaging</h1>
+    <span id="username"></span>
+    <div class="messageWrapper">
+        <div id="logs">
+        </div>
+    </div>
+    <div class="userlist">
+
+    </div>
+    <div class="typing">
+        <input type="text" id="message" /> <input type="button" value="send" onclick="sendMessage()"/>
+    </div>
+</body>
+</html>
