@@ -114,6 +114,47 @@ if (!DB_ACTIVE) {
   }
 }
 
+// Group Storage and Setup
+var groups = {}
+var user_to_groups = {}
+var listenGroupAuth = (id, groupName, authKey) => {
+  if (groups[groupName]) {
+    if (groups[groupName].key == authKey) {
+      groups[groupName].listeners = groups[groupName].listeners.concat(id);
+    } else {
+      return { success: false };
+    }
+  } else {
+    groups[groupName].key = authKey;
+    groups[groupName].listeners = [id];
+    groups[groupName].posters = [];
+  }
+  if (user_to_groups[id]) {
+    user_to_groups[id].listening = user_to_groups[id].listening.concat(groupName);
+  } else {
+    user_to_group[id] = { 'listening': [groupName], 'posting': [] }
+  }
+}
+
+var postGroupAuth = (id, groupName, authKey) => {
+  if (groups[groupName]) {
+    if (groups[groupName].key == authKey) {
+      groups[groupName].listeners = groups[groupName].listeners.concat(id);
+    } else {
+      return { success: false };
+    }
+  } else {
+    groups[groupName].key = authKey;
+    groups[groupName].listeners = [id];
+    groups[groupName].posters = [];
+  }
+  if (user_to_groups[id]) {
+    user_to_groups[id].posting= user_to_groups[id].posting.concat(groupName);
+  } else {
+    user_to_group[id] = { 'listening': [], 'posting': [groupName] }
+  }
+}
+
 app.get('/', (req, res) => {
   res.send({name: 'pal-command', version: '0.1.0'});
 });
@@ -181,6 +222,20 @@ io.sockets.on('connection', function(socket){
   });
   socket.on('complete', function(data) {
     completeCommand(data.clientId, data.id);
+  });
+  socket.on('groupauth', function(data) {
+    var type = data.type;
+    var groupName = data.group_name;
+    var authKey = data.auth_key;
+    var returnVal = null;
+    if (type == 'post') {
+      returnVal = postGroupAuth(socket.id, groupName, authKey);
+    } else if (type == 'listen') {
+      returnVal = listenGroupAuth(socket.id, groupName, authKey);
+    } else if (type == 'all') {
+      returnVal = postGroupAuth(socket.id, groupName, authKey);
+      returnVal = listenGroupAuth(socket.id, groupName, authKey);
+    }
   });
 });
 
