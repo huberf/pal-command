@@ -190,6 +190,24 @@ app.post('/add/:id', (req, res) => {
   res.send({status: 'success', command, id: commandId});
 });
 
+// Group posting
+app.post('/group/add/:id', (req, res) => {
+  // req.body.command should be a JSON object that can be executed locally
+  var command = req.body.command;
+  var clients = io.sockets.sockets;
+  var keys = Object.keys(io.sockets.sockets);
+  var commandId = createUuid();
+  createCommand(req.params.id, commandId, command);
+  for (var i = 0; i < keys.length; i++) {
+    console.log(clients[keys[i]].id);
+    if (clients[keys[i]].id == req.params.id) {
+      console.log('Found client and emitting command');
+      clients[keys[i]].emit('command', {command, id: commandId});
+    }
+  }
+  res.send({status: 'success', command, id: commandId});
+});
+
 // Endpoints for compatibility with devices that don't support websockets
 app.get('/retrieve/:id', (req, res) => {
   getCommands(req.params.id).then((commands) => {
