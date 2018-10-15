@@ -155,6 +155,14 @@ var postGroupAuth = (id, groupName, authKey) => {
   }
 }
 
+var isGroupPoster = (groupName, userId) => {
+  return groups[groupName].posters.includes(userId);
+}
+
+var getGroupListeners = (groupName) => {
+  return groups[groupName].listening;
+}
+
 app.get('/', (req, res) => {
   res.send({name: 'pal-command', version: '0.1.0'});
 });
@@ -191,18 +199,20 @@ app.post('/add/:id', (req, res) => {
 });
 
 // Group posting
-app.post('/group/add/:id', (req, res) => {
+app.post('/group/add/:groupId/:userId', (req, res) => {
   // req.body.command should be a JSON object that can be executed locally
   var command = req.body.command;
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
   var commandId = createUuid();
-  createCommand(req.params.id, commandId, command);
-  for (var i = 0; i < keys.length; i++) {
-    console.log(clients[keys[i]].id);
-    if (clients[keys[i]].id == req.params.id) {
-      console.log('Found client and emitting command');
-      clients[keys[i]].emit('command', {command, id: commandId});
+  if (isGroupPoster(req.params.userId)) {
+    createCommand(req.params.userId, commandId, command);
+    for (var i = 0; i < keys.length; i++) {
+      console.log(clients[keys[i]].id);
+      if (clients[keys[i]].id == req.params.id) {
+        console.log('Found client and emitting command');
+        clients[keys[i]].emit('command', {command, id: commandId});
+      }
     }
   }
   res.send({status: 'success', command, id: commandId});
