@@ -204,16 +204,19 @@ app.post('/group/add/:groupId/:userId', (req, res) => {
   var command = req.body.command;
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
-  var commandId = createUuid();
   if (isGroupPoster(req.params.userId)) {
-    createCommand(req.params.userId, commandId, command);
-    for (var i = 0; i < keys.length; i++) {
-      console.log(clients[keys[i]].id);
-      if (clients[keys[i]].id == req.params.id) {
-        console.log('Found client and emitting command');
-        clients[keys[i]].emit('command', {command, id: commandId});
+    getGroupListeners(req.params.groupId).forEach((data) => {
+      var userId = data;
+      var commandId = createUuid();
+      createCommand(userId, commandId, command);
+      for (var i = 0; i < keys.length; i++) {
+        console.log(clients[keys[i]].id);
+        if (clients[keys[i]].id == userId) {
+          console.log('Found client and emitting command');
+          clients[keys[i]].emit('command', {command, id: commandId});
+        }
       }
-    }
+    });
   }
   res.send({status: 'success', command, id: commandId});
 });
