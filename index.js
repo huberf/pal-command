@@ -31,11 +31,11 @@ var createUuid = () => {
 if (!DB_ACTIVE) {
   var commandQueue = {};
 
-  var createCommand = (clientId, commandId, command) => {
+  var createCommand = (clientId, commandId, command, group=undefined) => {
     if (commandQueue[clientId]) {
-      commandQueue[clientId].push({command, id: commandId, done: false, creation: Date.now()});
+      commandQueue[clientId].push({command, id: commandId, done: false, creation: Date.now(), group});
     } else {
-      commandQueue[clientIid] = [{command, id: commandId, done: false, creation: Date.now()}];
+      commandQueue[clientIid] = [{command, id: commandId, done: false, creation: Date.now(), group}];
     }
   }
 
@@ -54,6 +54,9 @@ if (!DB_ACTIVE) {
         foundOne = true;
         console.log('Marking command as complete');
         commandQueue[clientId][i].done = true;
+        if (commandQueue[clientId][i].group != undefined) {
+          notifyGroup(commandQueue[clientId][i]);
+        }
       }
     }
     var message = "None";
@@ -85,13 +88,14 @@ if (!DB_ACTIVE) {
     creation: Number,
   });
   const Command = mongoose.model('Command', commandSchema);
-  var createCommand = (clientId, commandId, command) => {
+  var createCommand = (clientId, commandId, command, group=undefined) => {
     var newCommand = new Command({
       command,
       clientId,
       id: commandId,
       done: false,
       creation: Date.now(),
+      group: group
     });
     newCommand.save();
   }
@@ -100,6 +104,9 @@ if (!DB_ACTIVE) {
       if (command) {
         command.done = true;
         command.save();
+        if (command.group != undefined) {
+          notifyGroup(command);
+        }
       } else {
         console.log('Error: No command found for supplied command ID and client ID');
       }
@@ -112,6 +119,10 @@ if (!DB_ACTIVE) {
       });
     });
   }
+}
+
+var notifyGroup = (command) => {
+  console.log(command);
 }
 
 // Group Storage and Setup
@@ -208,7 +219,7 @@ app.post('/group/add/:groupId/:userId', (req, res) => {
     getGroupListeners(req.params.groupId).forEach((data) => {
       var userId = data;
       var commandId = createUuid();
-      createCommand(userId, commandId, command);
+      createCommand(userId, commandId, command, req.params.groupId);
       for (var i = 0; i < keys.length; i++) {
         console.log(clients[keys[i]].id);
         if (clients[keys[i]].id == userId) {
