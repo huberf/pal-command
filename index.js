@@ -31,7 +31,7 @@ var createUuid = () => {
 if (!DB_ACTIVE) {
   var commandQueue = {};
 
-  var createCommand = (clientId, commandId, command, group=undefined) => {
+  var createCommand = (clientId, commandId, command, group) => {
     if (commandQueue[clientId]) {
       commandQueue[clientId].push({command, id: commandId, done: false, creation: Date.now(), group});
     } else {
@@ -88,7 +88,7 @@ if (!DB_ACTIVE) {
     creation: Number,
   });
   const Command = mongoose.model('Command', commandSchema);
-  var createCommand = (clientId, commandId, command, group=undefined) => {
+  var createCommand = (clientId, commandId, command, group) => {
     var newCommand = new Command({
       command,
       clientId,
@@ -155,6 +155,7 @@ var postGroupAuth = (id, groupName, authKey) => {
       return { success: false };
     }
   } else {
+    groups[groupName] = {};
     groups[groupName].key = authKey;
     groups[groupName].listeners = [id];
     groups[groupName].posters = [];
@@ -162,12 +163,16 @@ var postGroupAuth = (id, groupName, authKey) => {
   if (user_to_groups[id]) {
     user_to_groups[id].posting= user_to_groups[id].posting.concat(groupName);
   } else {
-    user_to_group[id] = { 'listening': [], 'posting': [groupName] }
+    user_to_groups[id] = { 'listening': [], 'posting': [groupName] }
   }
 }
 
 var isGroupPoster = (groupName, userId) => {
-  return groups[groupName].posters.includes(userId);
+  if (groups[groupName]) {
+    return groups[groupName].posters.includes(userId);
+  } else {
+    return false;
+  }
 }
 
 var getGroupListeners = (groupName) => {
@@ -210,15 +215,37 @@ app.post('/add/:id', (req, res) => {
 });
 
 // Group posting
+app.post('/group/permissions/:groupId/:userId', (req, res) => {
+    var type = req.body.type;
+    var groupName = req.params.groupId;
+    var authKey = req.body.auth_key;
+    var returnVal = null;
+    var userId = req.params.userId;
+    if (type == 'post') {
+      returnVal = postGroupAuth(userId, groupName, authKey);
+    } else if (type == 'listen') {
+      returnVal = listenGroupAuth(userId, groupName, authKey);
+    } else if (type == 'all') {
+      returnVal = postGroupAuth(userId, groupName, authKey);
+      returnVal = listenGroupAuth(userId, groupName, authKey);
+    }
+    console.log('authenticated user to group');
+    res.send(returnVal);
+});
+
 app.post('/group/add/:groupId/:userId', (req, res) => {
   // req.body.command should be a JSON object that can be executed locally
   var command = req.body.command;
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
+  var commandIdList = [];
+  console.log(groups);
+  console.log(user_to_groups);
   if (isGroupPoster(req.params.userId)) {
     getGroupListeners(req.params.groupId).forEach((data) => {
       var userId = data;
       var commandId = createUuid();
+      commandIdList = commandIdList.concat(commandId);
       createCommand(userId, commandId, command, req.params.groupId);
       for (var i = 0; i < keys.length; i++) {
         console.log(clients[keys[i]].id);
@@ -229,7 +256,8 @@ app.post('/group/add/:groupId/:userId', (req, res) => {
       }
     });
   }
-  res.send({status: 'success', command, id: commandId});
+  console.log('Posted task to group');
+  res.send({status: 'success', command, ids: commandIdList});
 });
 
 // Endpoints for compatibility with devices that don't support websockets
