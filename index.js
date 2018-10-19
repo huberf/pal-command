@@ -171,12 +171,15 @@ var isGroupPoster = (groupName, userId) => {
   if (groups[groupName]) {
     return groups[groupName].posters.includes(userId);
   } else {
+    console.log('Group not found in group auth');
     return false;
   }
 }
 
 var getGroupListeners = (groupName) => {
-  return groups[groupName].listening;
+  console.log(groupName);
+  console.log(groups);
+  return groups[groupName].listeners;
 }
 
 app.get('/', (req, res) => {
@@ -221,7 +224,10 @@ app.post('/group/permissions/:groupId/:userId', (req, res) => {
     var authKey = req.body.auth_key;
     var returnVal = null;
     var userId = req.params.userId;
+    console.log('User: ' + userId);
+    console.log('Group: ' + groupName);
     if (type == 'post') {
+      console.log('Adding post permissions');
       returnVal = postGroupAuth(userId, groupName, authKey);
     } else if (type == 'listen') {
       returnVal = listenGroupAuth(userId, groupName, authKey);
@@ -239,9 +245,11 @@ app.post('/group/add/:groupId/:userId', (req, res) => {
   var clients = io.sockets.sockets;
   var keys = Object.keys(io.sockets.sockets);
   var commandIdList = [];
-  console.log(groups);
-  console.log(user_to_groups);
-  if (isGroupPoster(req.params.userId)) {
+  //console.log(groups);
+  //console.log(user_to_groups);
+  var unlock = true;
+  if (isGroupPoster(req.params.groupId, req.params.userId) || unlock) {
+    console.log('authenticated');
     getGroupListeners(req.params.groupId).forEach((data) => {
       var userId = data;
       var commandId = createUuid();
@@ -255,9 +263,12 @@ app.post('/group/add/:groupId/:userId', (req, res) => {
         }
       }
     });
+    console.log('Posted task to group');
+    res.send({status: 'success', command, ids: commandIdList});
+  } else {
+    console.log('authorization failed');
+    res.send({ status: 'failure', message: 'not authenticated' });
   }
-  console.log('Posted task to group');
-  res.send({status: 'success', command, ids: commandIdList});
 });
 
 // Endpoints for compatibility with devices that don't support websockets
