@@ -136,6 +136,7 @@ var listenGroupAuth = (id, groupName, authKey) => {
       return { success: false };
     }
   } else {
+    groups[groupName] = {};
     groups[groupName].key = authKey;
     groups[groupName].listeners = [id];
     groups[groupName].posters = [];
@@ -143,22 +144,22 @@ var listenGroupAuth = (id, groupName, authKey) => {
   if (user_to_groups[id]) {
     user_to_groups[id].listening = user_to_groups[id].listening.concat(groupName);
   } else {
-    user_to_group[id] = { 'listening': [groupName], 'posting': [] }
+    user_to_groups[id] = { 'listening': [groupName], 'posting': [] }
   }
 }
 
 var postGroupAuth = (id, groupName, authKey) => {
   if (groups[groupName]) {
     if (groups[groupName].key == authKey) {
-      groups[groupName].listeners = groups[groupName].listeners.concat(id);
+      groups[groupName].posters = groups[groupName].posters.concat(id);
     } else {
       return { success: false };
     }
   } else {
     groups[groupName] = {};
     groups[groupName].key = authKey;
-    groups[groupName].listeners = [id];
-    groups[groupName].posters = [];
+    groups[groupName].listeners = [];
+    groups[groupName].posters = [id];
   }
   if (user_to_groups[id]) {
     user_to_groups[id].posting= user_to_groups[id].posting.concat(groupName);
@@ -169,6 +170,7 @@ var postGroupAuth = (id, groupName, authKey) => {
 
 var isGroupPoster = (groupName, userId) => {
   if (groups[groupName]) {
+    console.log(groups[groupName].posters);
     return groups[groupName].posters.includes(userId);
   } else {
     console.log('Group not found in group auth');
@@ -177,8 +179,6 @@ var isGroupPoster = (groupName, userId) => {
 }
 
 var getGroupListeners = (groupName) => {
-  console.log(groupName);
-  console.log(groups);
   return groups[groupName].listeners;
 }
 
@@ -247,7 +247,7 @@ app.post('/group/add/:groupId/:userId', (req, res) => {
   var commandIdList = [];
   //console.log(groups);
   //console.log(user_to_groups);
-  var unlock = true;
+  var unlock = false;
   if (isGroupPoster(req.params.groupId, req.params.userId) || unlock) {
     console.log('authenticated');
     getGroupListeners(req.params.groupId).forEach((data) => {
@@ -305,6 +305,7 @@ io.sockets.on('connection', function(socket){
     completeCommand(data.clientId, data.id);
   });
   socket.on('groupauth', function(data) {
+    console.log('Authorizing user over sockets');
     var type = data.type;
     var groupName = data.group_name;
     var authKey = data.auth_key;
