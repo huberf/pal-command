@@ -31,7 +31,8 @@ socketIO.on('command', on_command)
 socketIO.emit('handshake', {'id': myId})
 socketIO.wait(seconds=1)
 
-socketIO.emit('groupauth', { 'id': myId, 'group_name': 'test_group', 'auth_key': 'k23j5l2h42' });
+print("Authorizing with group");
+socketIO.emit('groupauth', { 'id': myId, 'group_name': 'test_group', 'auth_key': 'k23j5l2h42', 'type': 'listen' });
 socketIO.wait(seconds=1);
 
 # Listen only once
