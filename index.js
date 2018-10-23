@@ -319,6 +319,36 @@ io.sockets.on('connection', function(socket){
       returnVal = listenGroupAuth(socket.id, groupName, authKey);
     }
   });
+  socket.on('addtogroup', function(data) {
+    var command = data.command;
+    var clients = io.sockets.sockets;
+    var keys = Object.keys(io.sockets.sockets);
+    var commandIdList = [];
+    //console.log(groups);
+    //console.log(user_to_groups);
+    var unlock = false;
+    if (isGroupPoster(data.groupId, socket.id) || unlock) {
+      console.log('authenticated');
+      getGroupListeners(data.groupId).forEach((data) => {
+        var userId = data;
+        var commandId = createUuid();
+        commandIdList = commandIdList.concat(commandId);
+        createCommand(userId, commandId, command, data.groupId);
+        for (var i = 0; i < keys.length; i++) {
+          console.log(clients[keys[i]].id);
+          if (clients[keys[i]].id == userId) {
+            console.log('Found client and emitting command');
+            clients[keys[i]].emit('command', {command, id: commandId});
+          }
+        }
+      });
+      console.log('Posted task to group');
+      res.send({status: 'success', command, ids: commandIdList});
+    } else {
+      console.log('authorization failed');
+      res.send({ status: 'failure', message: 'not authenticated' });
+    }
+  });
 });
 
 http.listen(app.get('port'), function() {
