@@ -11,7 +11,7 @@ def execute(data):
         time.sleep(1) # Wait 1 second before new request
         socketIO.emit('addtogroup', {
             'id': myId,
-            'groupId': 'test_group',
+            'groupId': 'request_group',
             'command': {
                 'type': 'datarequest',
                 'data': 'system_time'
@@ -31,7 +31,6 @@ def on_handshake(data):
            execute(i)
 
 def on_command(data):
-    print(data)
     execute(data)
 
 socketIO = SocketIO('localhost', 1999, LoggingNamespace)
@@ -45,12 +44,19 @@ socketIO.wait(seconds=1)
 print("Authorizing with group");
 socketIO.emit('groupauth', {
     'id': myId,
-    'group_name': 'test_group',
+    'group_name': 'request_group',
     'auth_key': 'k23j5l2h42',
-    'type': 'all' });
+    'type': 'post'
+    });
+socketIO.emit('groupauth', {
+    'id': myId,
+    'group_name': 'inform_group',
+    'auth_key': 'k23j5l2h42',
+    'type': 'listen'
+    });
 socketIO.emit('addtogroup', {
     'id': myId,
-    'groupId': 'test_group',
+    'groupId': 'request_group',
     'command': {
         'type': 'datarequest',
         'data': 'system_time'

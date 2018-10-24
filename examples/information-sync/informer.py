@@ -8,10 +8,11 @@ def execute(data):
     success = True
     if data['command']['type'] == 'datarequest':
         if data['command']['data'] == 'system_time':
+            print(data)
             # Now post time
             socketIO.emit('addtogroup', {
                 'id': myId,
-                'groupId': 'test_group',
+                'groupId': 'inform_group',
                 'command': {
                     'type': 'dataresponse',
                     'data': 'system_time',
@@ -26,7 +27,6 @@ def execute(data):
         socketIO.emit('complete', {'clientId': myId, 'id': data['id']})
 
 def on_handshake(data):
-   print(data)
    for i in data['commands']:
        if not i == None:
            execute(i)
@@ -46,9 +46,15 @@ socketIO.wait(seconds=1)
 print("Authorizing with group");
 socketIO.emit('groupauth', {
     'id': myId,
-    'group_name': 'test_group',
+    'group_name': 'request_group',
     'auth_key': 'k23j5l2h42',
-    'type': 'all'
+    'type': 'listen'
+    });
+socketIO.emit('groupauth', {
+    'id': myId,
+    'group_name': 'inform_group',
+    'auth_key': 'k23j5l2h42',
+    'type': 'post'
     });
 socketIO.wait(seconds=1);
 
