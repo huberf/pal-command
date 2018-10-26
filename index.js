@@ -327,6 +327,7 @@ io.sockets.on('connection', function(socket){
     //console.log(groups);
     //console.log(user_to_groups);
     var unlock = false;
+    console.log(groups);
     if (isGroupPoster(data.groupId, socket.id) || unlock) {
       console.log('authenticated');
       getGroupListeners(data.groupId).forEach((data) => {
@@ -343,10 +344,8 @@ io.sockets.on('connection', function(socket){
         }
       });
       console.log('Posted task to group');
-      res.send({status: 'success', command, ids: commandIdList});
     } else {
       console.log('authorization failed');
-      res.send({ status: 'failure', message: 'not authenticated' });
     }
   });
 });
