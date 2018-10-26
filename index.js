@@ -131,7 +131,9 @@ var user_to_groups = {}
 var listenGroupAuth = (id, groupName, authKey) => {
   if (groups[groupName]) {
     if (groups[groupName].key == authKey) {
-      groups[groupName].listeners = groups[groupName].listeners.concat(id);
+      if (!groups[groupName].listeners.includes(id)) {
+        groups[groupName].listeners = groups[groupName].listeners.concat(id);
+      }
     } else {
       return { success: false };
     }
@@ -151,7 +153,9 @@ var listenGroupAuth = (id, groupName, authKey) => {
 var postGroupAuth = (id, groupName, authKey) => {
   if (groups[groupName]) {
     if (groups[groupName].key == authKey) {
-      groups[groupName].posters = groups[groupName].posters.concat(id);
+      if (!groups[groupName].posters.includes(id)) {
+        groups[groupName].posters = groups[groupName].posters.concat(id);
+      }
     } else {
       return { success: false };
     }
