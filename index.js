@@ -128,6 +128,9 @@ var notifyGroup = (command) => {
 // Group Storage and Setup
 var groups = {}
 var user_to_groups = {}
+
+var groupFuncs = require('./libs/group.js');
+
 var listenGroupAuth = (id, groupName, authKey) => {
   if (groups[groupName]) {
     if (groups[groupName].key == authKey) {
@@ -184,6 +187,14 @@ var isGroupPoster = (groupName, userId) => {
 
 var getGroupListeners = (groupName) => {
   return groups[groupName].listeners;
+}
+
+var postGroupRemove = (id, groupName) => {
+  groups = groupFuncs.postGroupRemove(id, groupName, groups);
+}
+
+var listenGroupRemove = (id, groupName) => {
+  groups = groupFuncs.listenGroupRemove(id, groupName, groups);
 }
 
 app.get('/', (req, res) => {
@@ -321,6 +332,20 @@ io.sockets.on('connection', function(socket){
     } else if (type == 'all') {
       returnVal = postGroupAuth(socket.id, groupName, authKey);
       returnVal = listenGroupAuth(socket.id, groupName, authKey);
+    }
+  });
+  socket.on('groupleave', function(data) {
+    console.log('Removing group user over sockets');
+    var type = data.type;
+    var groupName = data.group_name;
+    var returnVal = null;
+    if (type == 'post') {
+      returnVal = postGroupRemove(socket.id, groupName);
+    } else if (type == 'listen') {
+      returnVal = listenGroupRemove(socket.id, groupName);
+    } else if (type == 'all') {
+      returnVal = postGroupRemove(socket.id, groupName);
+      returnVal = listenGroupRemove(socket.id, groupName);
     }
   });
   socket.on('addtogroup', function(data) {
