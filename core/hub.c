@@ -16,7 +16,7 @@ void die(char *s) {
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "usage: %s <server_port>", argc[0]);
+    fprintf(stderr, "usage: %s <server_port>", argv[0]);
     exit(1);
   }
 
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   struct sockaddr_in servaddr;
   memset(&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
-  servaddr.sin_addr_s = htonl(INADDR_ANY); // Don't care about network interface
+  servaddr.sin_addr.s_addr = htonl(INADDR_ANY); // Don't care about network interface
   servaddr.sin_port = htons(port);
 
   if (bind(servsock, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
@@ -62,38 +62,43 @@ int main(int argc, char **argv) {
               (struct sockaddr *) &clntaddr, &clntlen)) < 0)
       die("accept failed");
     
-    fprintf(stderr, "client ip: %s\n", inet_ntoa(clntaddr.sin_addr)); // Log
+    pid_t child_pid = fork();
+    if (child_pid < 0) {
+      die("reached max children - couldn't spawn another");
+    } else if (!child_pid) {
+      fprintf(stderr, "client ip: %s\n", inet_ntoa(clntaddr.sin_addr)); // Log
 
-    r = recv(clntsock, &size_net, sizeof(size_net), MSG_WAITALL);
-    if (r != sizeof(size_net)) {
-      if (r < 0)
-        die("recv failed");
-      else if (r == 0)
-        die("connection closed prematurely");
-      else
-        die("didn't receive uint32");
-    }
-    size = ntohl(size_net); // convert it to host byte order
-    fprintf(stderr, "command length: %u\n", size);
-
-    remaining = size;
-    while (remaining > 0) {
-      limit = remaining > sizeof(buf) ? sizeof(buf) : remaining;
-      r = recv(clntsock, buf, limit, 0);
-      if (r < 0) {
-        die("recv failed");
-      } else if (r == 0) {
-        die("connection closed prematurely");
-      } else {
-        remaining -= r;
-        fprintf(stdout, buf);
+      r = recv(clntsock, &size_net, sizeof(size_net), MSG_WAITALL);
+      if (r != sizeof(size_net)) {
+        if (r < 0)
+          die("recv failed");
+        else if (r == 0)
+          die("connection closed prematurely");
+        else
+          die("didn't receive uint32");
       }
-    }
+      size = ntohl(size_net); // convert it to host byte order
+      fprintf(stderr, "command length: %u\n", size);
 
-    if (send(clntsock, "confirmed", sizeof("confirmed"), 0) != sizeof("confirmed")) {
-      die("send size failed");
-    }
+      remaining = size;
+      while (remaining > 0) {
+        limit = remaining > sizeof(buf) ? sizeof(buf) : remaining;
+        r = recv(clntsock, buf, limit, 0);
+        if (r < 0) {
+          die("recv failed");
+        } else if (r == 0) {
+          die("connection closed prematurely");
+        } else {
+          remaining -= r;
+          fprintf(stdout, buf);
+        }
+      }
 
-    close(clntsock); // In future, keep stream live
+      if (send(clntsock, "confirmed", sizeof("confirmed"), 0) != sizeof("confirmed")) {
+        die("send size failed");
+      }
+
+      close(clntsock); // In future, keep stream live
+    } // Parent continues now
   }
 }
