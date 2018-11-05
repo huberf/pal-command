@@ -49,5 +49,11 @@ int main(int argc, char **argv) {
     die("command send failed");
   }
 
+  char buffer[4096];
+  int r = recv(my_socket, buffer, sizeof(buffer), 0);
+  if (strcmp(buffer, "confirmed") == 0) {
+    fprintf(stderr, "command addition succeeded");
+  }
+
   close(my_socket);
 }

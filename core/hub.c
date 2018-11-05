@@ -90,8 +90,9 @@ int main(int argc, char **argv) {
           die("connection closed prematurely");
         } else {
           remaining -= r;
-          fprintf(stdout, buf);
         }
+        fprintf(stdout, "%s", buf);
+        fflush(stdout);
       }
 
       if (send(clntsock, "confirmed", sizeof("confirmed"), 0) != sizeof("confirmed")) {
@@ -99,6 +100,7 @@ int main(int argc, char **argv) {
       }
 
       close(clntsock); // In future, keep stream live
+      fprintf(stderr, "child closing");
     } // Parent continues now
   }
 }
